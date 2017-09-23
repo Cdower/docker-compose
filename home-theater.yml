@@ -1,0 +1,100 @@
+version: "3"
+services:
+  couchpotato:
+    image: linuxserver/couchpotato
+    ports:
+      - "5050:5050"
+    environment:
+      - TZ="America/Los_Angeles"
+      - PGID=1001
+      - PUID=1001
+    volumes:
+      - /opt/couchpotato/config:/config
+      - /opt/media/downloads/Movies:/Downloads
+      - /opt/media/Movies:/Movies
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    networks:
+      - home_theater
+  plex:
+    image: plexinc/pms-docker
+    ports:
+      - "32400:32400/tcp"
+      - "3005:3005/tcp"
+      - "8324:8324/tcp"
+      - "32469:32469/tcp"
+      - "1900:1900/udp"
+      - "32410:32410/udp"
+      - "32412:32412/udp"
+      - "32413:32413/udp"
+      - "32414:32414/udp"
+    environment:
+      - TZ="America/Los_Angeles"
+      - PLEX_GID=1001
+      - PLEX_UID=1001
+      - PLEX_CLAIM="claim-MzEVcMjtAazLqGBNVkvg"
+      - ADVERTISE_IP="http://192.168.10.119:32400/"
+    volumes:
+      - /opt/plex/database:/config
+      - /opt/plex/transcode/temp:/transcode
+      - /opt/media:/data
+    networks:
+      - home_theater
+  plexpy:
+    image: linuxserver/plexpy
+    ports:
+      - "8181:8181"
+    environment:
+      - TZ="America/Los_Angeles"
+      - PUID=1001
+      - PGID=1001
+    volumes:
+      - /opt/plexpy/config:/config
+      - /opt/plex/database/Library/Application\ Support/Plex\ Media\ Server/Logs/:/logs:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    networks:
+      - home_theater
+  transmission:
+    image: linuxserver/transmission
+    ports:
+      - "9091:9091"
+      - "51413:51413"
+      - "51413:51413/udp"
+    environment:
+      - PUID=1001
+      - PGID=1001
+      - TRUSER=control
+      - TRPASSWD=KDYAf18EMI5YGBkFMEqQ
+      - TZ="America/Los_Angeles"
+    volumes:
+      - "/opt/transmission/config:/config:rw"
+      - "/opt/media/downloads:/downloads:rw"
+      - "/opt/media/watch:/watch:rw"
+    networks:
+      - home_theater
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+  sickrage:
+    image: linuxserver/sickrage
+    environment:
+      - PGID=1001
+      - PUID=1001
+      - TZ="America/Los_Angeles"
+    volumes:
+      - "/opt/media/downloads:/downloads"
+      - "/opt/media/TV:/tv"
+      - "/opt/sickrage/config:/config"
+    ports:
+      - "8081:8081"
+    networks:
+      - home_theater
+
+networks:
+  home_theater:
