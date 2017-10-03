@@ -32,7 +32,6 @@ services:
       - ./zabbix-web-secret.env
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro
     networks:
       - zabbix
 networks:
