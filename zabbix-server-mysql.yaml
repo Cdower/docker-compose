@@ -1,0 +1,24 @@
+version: "3.3"
+services:
+  zabbix-server:
+    image: zabbix/zabbix-server-mysql:latest
+    env_file:
+      - ./zabbix-server-secret.env
+    volumes:
+      - "/opt/zabbix:/var/lib/zabbix"
+    ports:
+    networks:
+      - zabbix
+  mysql:
+    image: mariadb:latest
+    env_file:
+      - ./mariadb-secret.env
+    volumes:
+      - "/opt/media/mysql:/var/lib/mysql"
+    ports:
+      - "3306:3306"
+    networks:
+      - zabbix
+
+networks:
+  zabbix:
