@@ -5,6 +5,8 @@ services:
     env_file:
       - ./zabbix-server-secret.env
     privileged: true
+    networks:
+      - zabbix
 
 networks:
   zabbix:
