@@ -23,7 +23,7 @@ services:
   zabbix-web:
     image: zabbix/zabbix-web-apache-mysql:ubuntu-3.4-latest
     ports:
-      - "80:80"
+      - "8091:80"
     mem_limit: 512m
     env_file:
       - ./zabbix-web-secret.env
