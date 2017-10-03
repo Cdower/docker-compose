@@ -7,6 +7,7 @@ services:
     volumes:
       - "/opt/configs/zabbix:/var/lib/zabbix"
     ports:
+      - "10051:10051"
     networks:
       - zabbix
   mysql:
