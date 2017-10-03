@@ -2,6 +2,8 @@ version: "3.3"
 services:
   zabbix-agent:
     image: zabbix/zabbix-agent:latest
+    env_file:
+      - ./zabbix-server-secret.env
     privileged: true
 
 networks:
