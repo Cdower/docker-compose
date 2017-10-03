@@ -1,0 +1,9 @@
+version: "3.3"
+services:
+  zabbix-agent:
+    image: zabbix/zabbix-agent:latest
+    privileged: true
+
+networks:
+  zabbix:
+    external: true

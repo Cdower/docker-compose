@@ -98,3 +98,4 @@ services:
 
 networks:
   home_theater:
+    external: true
