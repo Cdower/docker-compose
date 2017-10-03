@@ -1,0 +1,29 @@
+version: "3.3"
+services:
+  homeassistant:
+    image: homeassistant/home-assistant
+    #build:
+      #context: .
+      #dockerfile: Dockerfile
+    #must be on host network inoder for discovery to work, if you know what ports your devises need for device communication add them to ports. If you add explicit ports for your services feel free to submit a pull request to have known ports be added to the readme
+    ports:
+      - "443:443"
+      - "8123:8123"
+      - "1883:1883"
+      - "8090:8090"
+      - "8883:8883" #mqtt ssl
+        #network_mode: "host"
+    volumes:
+      - /home/chrris/Dockerfiles/home-assistant/config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/letsencrypt/live/complexity.duckdns.org/:/etc/letsencrypt/live/complexity.duckdns.org/
+      - /etc/letsencrypt/archive/complexity.duckdns.org/:/etc/letsencrypt/archive/complexity.duckdns.org/
+    networks:
+      - home_assistant
+      - httpd_proxy
+
+networks:
+  httpd_proxy:
+    external: true
+  home_assistant:
+    external: true
