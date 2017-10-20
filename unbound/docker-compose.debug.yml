@@ -8,3 +8,5 @@ services:
       dockerfile: Dockerfile
     ports:
       - 53:53
+    volumes:
+      - /var/log/unbound:/var/log/unbound
