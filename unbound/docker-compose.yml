@@ -1,0 +1,10 @@
+version: '2.1'
+
+services:
+  docker-compose:
+    image: docker-compose
+    build: .
+    ports:
+      - 53:53
+    volumes:
+      - /var/log/unbound:/var/log/unbound
