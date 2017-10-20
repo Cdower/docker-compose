@@ -16,11 +16,12 @@ EXPOSE 53/udp
 #  && rm /tmp/unbound-1.6.7.tar.gz \
 #  && cd unbound \
 #  && make install
-RUN wget -S -N https://www.internic.net/domain/named.cache -O /etc/unbound/root.hints \
+RUN  wget -S -N https://www.internic.net/domain/named.cache -O /etc/unbound/root.hints \
   && chown -R unbound:unbound /etc/unbound
 
 USER unbound  
-RUN /usr/sbin/unbound-anchor -a /var/lib/unbound/root.key -c /etc/unbound/icannbundle.pem
+RUN  /usr/sbin/unbound-checkconf \
+  && /usr/sbin/unbound-anchor -a /var/lib/unbound/root.key -c /etc/unbound/icannbundle.pem
 
 USER root
 ADD unbound.conf /etc/unbound/unbound.conf
