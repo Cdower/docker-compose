@@ -18,5 +18,4 @@ EXPOSE 53
 RUN wget -S -N https://www.internic.net/domain/named.cache -O /etc/unbound/root.hints
 
 ADD unbound.conf /etc/unbound/unbound.conf
-ADD /etc/unbound/root.hints
 CMD [ "unbound", "-c", "/etc/unbound/unbound.conf"]
