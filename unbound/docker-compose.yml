@@ -5,6 +5,7 @@ services:
     image: docker-compose
     build: .
     ports:
-      - 53:53
+      - "53:53"
+      - "53:53/udp"
     volumes:
       - /var/log/unbound:/var/log/unbound
