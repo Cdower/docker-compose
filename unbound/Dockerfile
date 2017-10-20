@@ -18,12 +18,10 @@ EXPOSE 53/udp
 #  && make install
 RUN  wget -S -N https://www.internic.net/domain/named.cache -O /etc/unbound/root.hints \
   && chown -R unbound:unbound /etc/unbound
-
+ADD unbound.conf /etc/unbound/unbound.conf
 USER unbound  
 RUN  /usr/sbin/unbound-anchor -a /var/lib/unbound/root.key -c /etc/unbound/icannbundle.pem \
   && /usr/sbin/unbound-checkconf
 
 USER root
-ADD unbound.conf /etc/unbound/unbound.conf
-
 CMD [ "unbound", "-c", "/etc/unbound/unbound.conf"]
