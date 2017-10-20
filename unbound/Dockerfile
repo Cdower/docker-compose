@@ -8,13 +8,15 @@ EXPOSE 53
 #ENV SHA256SUM_UNBOUND="4e7bd43d827004c6d51bef73adf941798e4588bdb40de5e79d89034d69751c9f"
   
 #RUN wget https://unbound.net/downloads/unbound-1.6.7.tar.gz -O /tmp/unbound-1.6.7.tar.gz \
-#  && wget -S -N https://www.internic.net/domain/named.cache -O /etc/unbound/root.hints \
+#  &&  \
 #  && cd /tmp/ \
 #  && echo $SHA256SUM_UNBOUND /tmp/unbound-1.6.7.tar.gz | sha256sum -c - \
 #  && tar -I pigz -xvf unbound-1.6.7.tar.gz -C /tmp/unbound \
 #  && rm /tmp/unbound-1.6.7.tar.gz \
 #  && cd unbound \
 #  && make install
+RUN wget -S -N https://www.internic.net/domain/named.cache -O /etc/unbound/root.hints
 
 ADD unbound.conf /etc/unbound/unbound.conf
+ADD /etc/unbound/root.hints
 CMD [ "unbound", "-c", "/etc/unbound/unbound.conf"]
