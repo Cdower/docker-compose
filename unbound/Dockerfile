@@ -5,6 +5,7 @@ RUN dnf makecache && dnf update -y \
   && dnf clean all
 
 EXPOSE 53
+EXPOSE 53/udp
 #ENV SHA256SUM_UNBOUND="4e7bd43d827004c6d51bef73adf941798e4588bdb40de5e79d89034d69751c9f"
   
 #RUN wget https://unbound.net/downloads/unbound-1.6.7.tar.gz -O /tmp/unbound-1.6.7.tar.gz \
