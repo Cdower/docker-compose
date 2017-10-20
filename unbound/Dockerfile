@@ -1,7 +1,7 @@
 FROM fedora:latest
 LABEL Name=unbound Version=0.0.1 
 RUN dnf makecache && dnf update -y \
-  && dnf install -y pigz make \
+  && dnf install -y pigz make wget tar \
   && dnf clean all
 
 EXPOSE 53
