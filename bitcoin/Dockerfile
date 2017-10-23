@@ -14,7 +14,7 @@ ENV GROUP_ID ${GROUP_ID:-1000}
 RUN groupadd -g ${GROUP_ID} bitcoin \
 	&& useradd -u ${USER_ID} -g bitcoin -s /bin/bash -m -d /bitcoin bitcoin
 
-RUN apt-get update && apt-get install -y software-properties-common python3-software-properties python-software-properties
+RUN apt-get update && apt-get install -y software-properties-common python-software-properties
 
 RUN apt-add-repository ppa:bitcoin/bitcoin
 
