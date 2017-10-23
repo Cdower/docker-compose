@@ -50,6 +50,9 @@ EXPOSE 8332 8333 18332 18333
 WORKDIR /bitcoin
 
 COPY docker-entrypoint.sh /usr/local/bin/
+RUN  chmod 755 /usr/local/bin/docker-entrypoint.sh \
+  && chmod 755 /usr/local/bin/btc_oneshot \
+  && chmod 755 /usr/local/bin/btc_init
 ENTRYPOINT ["docker-entrypoint.sh"]
 
 CMD ["btc_oneshot"]
