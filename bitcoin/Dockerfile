@@ -7,8 +7,8 @@ ARG GROUP_ID
 ENV HOME /bitcoin
 
 # add user with specified (or default) user/group ids
-ENV USER_ID ${USER_ID:-1000}
-ENV GROUP_ID ${GROUP_ID:-1000}
+ENV USER_ID ${USER_ID:1004}
+ENV GROUP_ID ${GROUP_ID:1004}
 
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
 RUN groupadd -g ${GROUP_ID} bitcoin \
