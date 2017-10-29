@@ -34,7 +34,7 @@ services:
       - TZ="America/Los_Angeles"
       - PLEX_GID=1001
       - PLEX_UID=1001
-      - PLEX_CLAIM="claim-MzEVcMjtAazLqGBNVkvg"
+      - PLEX_CLAIM="claim"
       - ADVERTISE_IP="http://192.168.10.119:32400/"
     volumes:
       - /opt/plex/database:/config
