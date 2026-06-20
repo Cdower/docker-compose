@@ -1,1 +1,4 @@
 *secret.env
+
+# Hindsight: real env holds API keys/DB password; keep the template tracked.
+hindsight/.env
