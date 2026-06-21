@@ -1,0 +1,68 @@
+name: github-runner
+# GitHub Actions self-hosted runner — Linux x86 host (Ubuntu Server 26.04).
+#
+# Runs as a linux/amd64 container. The *token source* here is the system Secret
+# Service (libsecret / gnome-keyring) — Ubuntu's device keychain — read with the
+# `secret-tool` CLI from the `libsecret-tools` package.
+#
+# The registration token is NEVER written to disk or committed. It is read from
+# the keychain at start time and injected as RUNNER_TOKEN. Use the wrapper so the
+# lookup happens for you:
+#
+#   ./scripts/store-token-linux.sh     # one-time: stash the token in the keychain
+#   ./scripts/runner-up-linux.sh       # reads keychain -> RUNNER_TOKEN -> compose up
+#
+# …which is exactly equivalent to:
+#
+#   RUNNER_TOKEN="$(secret-tool lookup service github-actions-runner-token \
+#       account "$USER")" \
+#     docker compose -f docker-compose.linux-x86.yml up -d --build
+#
+# All non-secret settings (URL, name, labels, …) live in .env — see .env.example.
+
+services:
+  runner:
+    build:
+      context: .
+      args:
+        RUNNER_VERSION: ${RUNNER_VERSION:-latest}
+    image: github-actions-runner:amd64
+    platform: linux/amd64
+    container_name: github-runner
+    restart: unless-stopped
+    # Give an in-flight job time to finish on `docker compose down` / `stop`.
+    stop_grace_period: 5m
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # --- Secret: injected from the Secret Service by the wrapper (never in .env).
+      RUNNER_TOKEN: ${RUNNER_TOKEN:?RUNNER_TOKEN is empty — start with ./scripts/runner-up-linux.sh so the token is read from the keychain (run ./scripts/store-token-linux.sh first if you have not)}
+      # --- Non-secret config (falls back to these defaults if unset in .env).
+      RUNNER_URL: ${RUNNER_URL:?set RUNNER_URL in github-runner/.env (e.g. https://github.com/<org>/<repo>)}
+      RUNNER_NAME: ${RUNNER_NAME:-}
+      RUNNER_LABELS: ${RUNNER_LABELS:-self-hosted,linux,x64}
+      RUNNER_GROUP: ${RUNNER_GROUP:-Default}
+      RUNNER_WORKDIR: ${RUNNER_WORKDIR:-_work}
+      RUNNER_EXTRA_ARGS: ${RUNNER_EXTRA_ARGS:-}
+      # Where config.sh output + _work are persisted *inside* the container; this
+      # path is the mount point of the volume below.
+      RUNNER_DIR: /runner
+    volumes:
+      # config.sh writes .runner/.credentials/.credentials_rsaparams/_diag here,
+      # plus the _work checkout dir. The named volume persists them across restarts
+      # and image rebuilds, so the runner registers only once.
+      - runner-data:/runner
+      # Prefer a path on local disk instead of a Docker volume? Comment the line
+      # above and use a bind mount (created automatically), e.g.:
+      # - ./_data/runner:/runner
+    healthcheck:
+      # The runner has no port; treat "Runner.Listener is alive" as healthy.
+      test: ["CMD-SHELL", "pgrep -f Runner.Listener >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+
+volumes:
+  runner-data:
