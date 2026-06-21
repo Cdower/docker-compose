@@ -33,6 +33,35 @@ RUN apt-get update \
       lsb-release \
  && rm -rf /var/lib/apt/lists/*
 
+# Docker CLI (+ buildx & compose plugins) so workflow steps can run Docker
+# ("docker-in-job"). The daemon is NOT installed: at runtime the compose files
+# mount the host's Docker socket (docker-out-of-docker). Set INSTALL_DOCKER_CLI=
+# false to slim the image if your jobs never touch Docker.
+ARG INSTALL_DOCKER_CLI=true
+# Override if Docker's apt repo does not yet publish your Ubuntu codename.
+ARG DOCKER_APT_CODENAME=
+RUN if [ "${INSTALL_DOCKER_CLI}" = "true" ]; then \
+      set -eux; \
+      install -m 0755 -d /etc/apt/keyrings; \
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc; \
+      chmod a+r /etc/apt/keyrings/docker.asc; \
+      . /etc/os-release; \
+      CODENAME="${DOCKER_APT_CODENAME:-${VERSION_CODENAME}}"; \
+      # Docker publishes one repo per Ubuntu release. If this brand-new release \
+      # is not published yet, fall back to the latest LTS (its CLI runs fine on \
+      # newer Ubuntu) so the build still succeeds. \
+      if ! curl -fsSL -o /dev/null "https://download.docker.com/linux/ubuntu/dists/${CODENAME}/Release"; then \
+        echo "Docker apt repo has no '${CODENAME}' dist yet; falling back to 'noble'"; \
+        CODENAME=noble; \
+      fi; \
+      echo "deb [arch=${TARGETARCH} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${CODENAME} stable" \
+        > /etc/apt/sources.list.d/docker.list; \
+      apt-get update; \
+      apt-get install -y --no-install-recommends \
+        docker-ce-cli docker-buildx-plugin docker-compose-plugin; \
+      rm -rf /var/lib/apt/lists/*; \
+    fi
+
 # gosu: download the prebuilt binary for this arch (no dead keyservers).
 RUN curl -fsSL -o /usr/local/bin/gosu \
       "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-${TARGETARCH}" \

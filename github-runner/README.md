@@ -67,8 +67,18 @@ jobs:
 ## How the token reaches the runner
 
 Docker Compose can't shell out to a keychain on its own, so the host reads the
-secret and passes it in via an environment variable that the compose file
-requires (`RUNNER_TOKEN: ${RUNNER_TOKEN:?…}`). The wrappers are just this:
+secret from the OS keychain and exports it as `RUNNER_TOKEN`. The compose file
+then delivers it to the container as a **Docker secret** — mounted as a file at
+`/run/secrets/runner_token`, *not* placed in the container environment — so it
+never shows up in `docker inspect` or the process environment:
+
+```yaml
+secrets:
+  runner_token:
+    environment: RUNNER_TOKEN     # value comes from the exported env var
+```
+
+The wrappers do the keychain read for you:
 
 **macOS** — `scripts/runner-up-macos.sh`:
 
@@ -90,6 +100,34 @@ You can run those one-liners directly; the wrappers just add error messages and
 pass through extra `docker compose` arguments. Because the token only needs to be
 valid for the initial `config.sh` registration, it can expire afterwards without
 affecting an already-registered runner.
+
+### Is there a more Docker-native way to pass the secret?
+
+Two questions hide in there — *how it's delivered* and *where it lives at rest* —
+and they have different "most native" answers:
+
+- **Delivery to the container** — the Docker-native mechanism is **Compose
+  secrets** (`secrets:` + `/run/secrets/<name>`), which this stack uses. It's
+  strictly better than putting the token in `environment:` because the value is
+  mounted as a tmpfs file instead of being visible in `docker inspect` and the
+  process environment. The secret here is sourced from the `RUNNER_TOKEN` env var
+  (`secrets.runner_token.environment`); you could instead point it at a file with
+  `file: ./token.txt`, but a plaintext file on disk is exactly what the keychain
+  avoids.
+- **At rest** — Docker's own managed secret store is **Swarm secrets**
+  (`docker secret create`), encrypted in the Raft log and mounted at
+  `/run/secrets`. It's the most "Docker-native" place to keep a secret, but it
+  requires Swarm mode (`docker swarm init`) and a `secret` declared
+  `external: true`. For a single-host runner that's heavier than it's worth, and
+  the OS keychain is a better at-rest store than a file either way.
+- **Build-time only** — for secrets needed during `docker build` (not our runtime
+  token), the native tool is **BuildKit secrets** (`--secret` +
+  `RUN --mount=type=secret`), which keep them out of image layers.
+
+So the design here is deliberately a hybrid: **keychain at rest** (your original
+ask, and better than a file) + **Compose secret for delivery** (the Docker-native
+hand-off). If you run a Swarm, swap the `secrets:` block to an
+`external: true` Swarm secret and drop the keychain wrapper.
 
 ### Linux x86 — token in the keychain (headless setup)
 
@@ -142,6 +180,39 @@ docker compose -f docker-compose.linux-x86.yml exec runner ls -a /runner
 docker volume inspect github-runner_runner-data
 ```
 
+## Docker-in-job
+
+Workflow steps can run Docker out of the box. The image ships the Docker CLI plus
+the `buildx` and `compose` plugins, and the compose files mount the host Docker
+daemon socket (**docker-out-of-docker** — the host's daemon does the work, no
+nested daemon):
+
+```yaml
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock
+```
+
+The socket's owning group differs by host (often `0`/root on Docker Desktop,
+something like `999` on Linux), so the entrypoint detects its GID at start and
+adds the `runner` user to the matching group — no hardcoded `docker` GID. A job
+can then just use Docker:
+
+```yaml
+steps:
+  - run: docker version
+  - run: docker build -t myimage .
+  - run: docker compose up -d
+```
+
+**Disable it** by commenting the `docker.sock` line in the compose file (and, to
+also drop the CLI from the image, rebuild with `INSTALL_DOCKER_CLI=false`).
+
+> **Security:** mounting the Docker socket gives jobs root-equivalent control of
+> the host's Docker (and therefore the host). Only enable it for trusted repos /
+> workflows. If you need isolation for untrusted jobs, run a privileged
+> Docker-in-Docker (`docker:dind`) sidecar instead and point the runner at it via
+> `DOCKER_HOST=tcp://docker:2376` with TLS — heavier, but the daemon is contained.
+
 ## Operations
 
 All commands accept either compose file — swap in the one for your platform.
@@ -190,8 +261,12 @@ docker compose -f docker-compose.linux-x86.yml exec runner \
 - **Runner won't re-register after editing labels/name** — `config.sh` runs only
   when `/runner/.runner` is absent. Either `down -v` to reset, or `exec … config.sh
   remove` then bring it up again.
-- **Docker-in-job** — jobs that need Docker require mounting the host's Docker
-  socket (`/var/run/docker.sock`) and adding `runner` to the host's `docker`
-  group; this is host-specific and intentionally left out of the defaults.
+- **`docker: command not found` in a job** — the image was built with
+  `INSTALL_DOCKER_CLI=false`, or the `docker.sock` mount is commented out. See
+  [Docker-in-job](#docker-in-job).
+- **`permission denied` on `/var/run/docker.sock`** — the entrypoint adjusts the
+  `runner` group to match the socket at start; if you bind-mount a socket with an
+  unusual owner, check the `==> Docker socket … detected` log line.
 - **Don't run privileged CI on a runner exposed to untrusted PRs.** Self-hosted
-  runners should generally be limited to private repos or trusted workflows.
+  runners should generally be limited to private repos or trusted workflows, and
+  the mounted Docker socket makes this especially important.

@@ -12,6 +12,14 @@ set -euo pipefail
 STAGING=/opt/actions-runner
 RUNNER_DIR="${RUNNER_DIR:-/runner}"
 
+# Token delivery: prefer the Docker/Compose secret mounted at /run/secrets
+# (kept out of the container environment and `docker inspect`); fall back to the
+# RUNNER_TOKEN env var for the inline one-liner workflow.
+if [ -z "${RUNNER_TOKEN:-}" ] && [ -f /run/secrets/runner_token ]; then
+  RUNNER_TOKEN="$(cat /run/secrets/runner_token)"
+  export RUNNER_TOKEN
+fi
+
 # 1. First boot on a fresh volume: copy the image's runner binaries in.
 if [ ! -x "${RUNNER_DIR}/config.sh" ]; then
   echo "==> Seeding runner binaries into ${RUNNER_DIR} (first boot on this volume)"
@@ -21,6 +29,26 @@ fi
 
 # The runner refuses to run as root; make sure it owns everything it persists.
 chown -R runner:runner "${RUNNER_DIR}"
+
+# Docker-in-job: if the host Docker socket is mounted, let `runner` use it by
+# matching the socket's owning group (GID varies by host; commonly 0 on Docker
+# Desktop, often 999/erratic on Linux — so we detect it instead of hardcoding).
+DOCKER_SOCK="${DOCKER_SOCK:-/var/run/docker.sock}"
+if [ -S "${DOCKER_SOCK}" ]; then
+  DOCKER_GID="$(stat -c '%g' "${DOCKER_SOCK}")"
+  if [ "${DOCKER_GID}" = "0" ]; then
+    # Socket owned by the root group (e.g. Docker Desktop) — add runner to root.
+    usermod -aG root runner
+  else
+    GROUP_NAME="$(getent group "${DOCKER_GID}" | cut -d: -f1 || true)"
+    if [ -z "${GROUP_NAME}" ]; then
+      GROUP_NAME=docker
+      groupadd -g "${DOCKER_GID}" "${GROUP_NAME}"
+    fi
+    usermod -aG "${GROUP_NAME}" runner
+  fi
+  echo "==> Docker socket ${DOCKER_SOCK} detected (gid ${DOCKER_GID}); jobs can run Docker"
+fi
 
 cd "${RUNNER_DIR}"
 
