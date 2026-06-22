@@ -48,7 +48,10 @@ services:
       # environment). Falls back to these defaults if unset in .env.
       RUNNER_URL: ${RUNNER_URL:?set RUNNER_URL in github-runner/.env (e.g. https://github.com/<org>/<repo>)}
       RUNNER_NAME: ${RUNNER_NAME:-}
-      RUNNER_LABELS: ${RUNNER_LABELS:-self-hosted,linux,arm64,docker}
+      # The `docker` label is opt-in: it's added by
+      # docker-compose.macos-arm64.override.yml together with the host Docker
+      # socket mount (docker-in-job). See the README.
+      RUNNER_LABELS: ${RUNNER_LABELS:-self-hosted,linux,arm64}
       RUNNER_GROUP: ${RUNNER_GROUP:-Default}
       RUNNER_WORKDIR: ${RUNNER_WORKDIR:-_work}
       RUNNER_EXTRA_ARGS: ${RUNNER_EXTRA_ARGS:-}
@@ -66,12 +69,9 @@ services:
       # Prefer a path on local disk instead of a Docker volume? Comment the line
       # above and use a bind mount (created automatically), e.g.:
       # - ./_data/runner:/runner
-      # Docker-in-job (docker-out-of-docker): mount the host Docker daemon socket
-      # so steps can run docker / docker build / docker compose. The entrypoint
-      # grants the runner access by matching the socket's group.
-      # SECURITY: this gives jobs root-equivalent control of the host's Docker —
-      # use only with trusted repos/workflows. Comment it out to disable.
-      - /var/run/docker.sock:/var/run/docker.sock
+      # Docker-in-job (mounting the host Docker socket) is opt-in and lives in
+      # docker-compose.macos-arm64.override.yml. Turn it on with
+      # RUNNER_DOCKER_IN_JOB=1 ./scripts/runner-up-macos.sh — see the README.
     healthcheck:
       # The runner has no port; treat "Runner.Listener is alive" as healthy.
       test: ["CMD-SHELL", "pgrep -f Runner.Listener >/dev/null || exit 1"]

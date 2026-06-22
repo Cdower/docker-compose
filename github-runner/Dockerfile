@@ -34,9 +34,10 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # Docker CLI (+ buildx & compose plugins) so workflow steps can run Docker
-# ("docker-in-job"). The daemon is NOT installed: at runtime the compose files
-# mount the host's Docker socket (docker-out-of-docker). Set INSTALL_DOCKER_CLI=
-# false to slim the image if your jobs never touch Docker.
+# ("docker-in-job"). The daemon is NOT installed: mounting the host's Docker
+# socket (docker-out-of-docker) is opt-in via docker-compose.<platform>.override.yml
+# (RUNNER_DOCKER_IN_JOB=1). Set INSTALL_DOCKER_CLI=false to slim the image if your
+# jobs never touch Docker.
 ARG INSTALL_DOCKER_CLI=true
 # Override if Docker's apt repo does not yet publish your Ubuntu codename.
 ARG DOCKER_APT_CODENAME=

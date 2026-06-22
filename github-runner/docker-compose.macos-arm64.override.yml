@@ -1,0 +1,15 @@
+name: github-runner
+# Docker-in-job overlay (OPT-IN) for the macOS (Apple Silicon / arm64) runner:
+# mounts the host Docker socket and re-adds the `docker` label the base omits.
+# Enable via the wrapper:  RUNNER_DOCKER_IN_JOB=1 ./scripts/runner-up-macos.sh
+#
+# SECURITY: the socket gives jobs root-equivalent control of the host's Docker —
+# only enable it for trusted repos/workflows. Full details in the README.
+services:
+  runner:
+    environment:
+      # Compose replaces this scalar (it can't append), so restate the base
+      # default plus `docker`. Only registered by config.sh on first boot.
+      RUNNER_LABELS: ${RUNNER_LABELS:-self-hosted,linux,arm64,docker}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
