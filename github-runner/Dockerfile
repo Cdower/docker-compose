@@ -32,6 +32,7 @@ RUN apt-get update \
       procps \
       lsb-release \
       tzdata \
+      docker \
       libatomic1 \
  && rm -rf /var/lib/apt/lists/*
 
