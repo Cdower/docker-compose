@@ -19,7 +19,18 @@ ARG GOSU_VERSION=1.17
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Base tooling the runner bootstrap + most jobs expect. installdependencies.sh
-# (run below) pulls in the runtime libs (libicu, liblttng-ust, libkrb5, …).
+# (run below) pulls in the *runner's* own runtime libs (libicu, liblttng-ust,
+# libkrb5, …), but not the libs that toolchains downloaded at job time need, so
+# two extras are pinned here explicitly:
+#   - libatomic1: the Node.js binaries actions/setup-node unpacks into the tool
+#     cache are dynamically linked against libatomic.so.1 (both the linux-x64
+#     and linux-arm64 builds list it as NEEDED). Ubuntu's minimal base omits the
+#     library, so without this package node/npm abort at startup with
+#     "error while loading shared libraries: libatomic.so.1: cannot open shared
+#     object file". Installing it system-wide makes it resolvable for every
+#     cached toolchain binary. Do not drop it.
+#   - tzdata: a populated zoneinfo database so jobs (and the TZ env var) resolve
+#     timezones instead of defaulting to UTC.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates \
