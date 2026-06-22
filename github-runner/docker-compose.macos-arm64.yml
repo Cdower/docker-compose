@@ -48,7 +48,7 @@ services:
       # environment). Falls back to these defaults if unset in .env.
       RUNNER_URL: ${RUNNER_URL:?set RUNNER_URL in github-runner/.env (e.g. https://github.com/<org>/<repo>)}
       RUNNER_NAME: ${RUNNER_NAME:-}
-      RUNNER_LABELS: ${RUNNER_LABELS:-self-hosted,macos,arm64,docker}
+      RUNNER_LABELS: ${RUNNER_LABELS:-self-hosted,linux,arm64,docker}
       RUNNER_GROUP: ${RUNNER_GROUP:-Default}
       RUNNER_WORKDIR: ${RUNNER_WORKDIR:-_work}
       RUNNER_EXTRA_ARGS: ${RUNNER_EXTRA_ARGS:-}
