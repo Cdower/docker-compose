@@ -54,8 +54,8 @@ RUN if [ "${INSTALL_DOCKER_CLI}" = "true" ]; then \
       # is not published yet, fall back to the latest LTS (its CLI runs fine on \
       # newer Ubuntu) so the build still succeeds. \
       if ! curl -fsSL -o /dev/null "https://download.docker.com/linux/ubuntu/dists/${CODENAME}/Release"; then \
-        echo "Docker apt repo has no '${CODENAME}' dist yet; falling back to 'noble'"; \
-        CODENAME=noble; \
+        echo "Docker apt repo has no '${CODENAME}' dist yet; falling back to 'resolute'"; \
+        CODENAME=resolute; \
       fi; \
       echo "deb [arch=${TARGETARCH} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${CODENAME} stable" \
         > /etc/apt/sources.list.d/docker.list; \

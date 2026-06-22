@@ -58,6 +58,7 @@ services:
       # Where config.sh output + _work are persisted *inside* the container; this
       # path is the mount point of the volume below.
       RUNNER_DIR: /runner
+      TZ: 'America/Los_Angeles'
     secrets:
       # Mounted at /run/secrets/runner_token; the entrypoint reads it there.
       - runner_token
