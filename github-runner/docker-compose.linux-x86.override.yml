@@ -1,30 +1,15 @@
 name: github-runner
-# Docker-in-job overlay for the Linux x86 (amd64) runner — OPT-IN.
+# Docker-in-job overlay (OPT-IN) for the Linux x86 (amd64) runner: mounts the
+# host Docker socket and re-adds the `docker` label that the base file omits.
+# Enable via the wrapper:  RUNNER_DOCKER_IN_JOB=1 ./scripts/runner-up-linux.sh
 #
-# Layered on top of docker-compose.linux-x86.yml, this mounts the host Docker
-# daemon socket (docker-out-of-docker — the host's daemon does the work, no
-# nested daemon) so workflow steps can run docker / docker build / docker
-# compose, and re-adds the `docker` label so jobs can target it via `runs-on`.
-#
-# Enable it through the wrapper, which adds this file's -f for you:
-#
-#   RUNNER_DOCKER_IN_JOB=1 ./scripts/runner-up-linux.sh
-#
-# …or by hand:
-#
-#   docker compose -f docker-compose.linux-x86.yml \
-#                  -f docker-compose.linux-x86.override.yml up -d --build
-#
-# SECURITY: the Docker socket gives jobs root-equivalent control of the host's
-# Docker (and therefore the host). Only enable it for trusted repos/workflows.
+# SECURITY: the socket gives jobs root-equivalent control of the host's Docker —
+# only enable it for trusted repos/workflows. Full details in the README.
 services:
   runner:
     environment:
-      # Re-add the `docker` label the base file omits, so workflows can target
-      # this runner's docker-in-job capability. Only registered with config.sh on
-      # first boot (it's persisted in the volume) — see the README to re-register.
+      # Compose replaces this scalar (it can't append), so restate the base
+      # default plus `docker`. Only registered by config.sh on first boot.
       RUNNER_LABELS: ${RUNNER_LABELS:-self-hosted,linux,x64,docker}
     volumes:
-      # The entrypoint grants the runner access by matching the socket's owning
-      # group (GID varies by host), so no hardcoded `docker` GID is needed.
       - /var/run/docker.sock:/var/run/docker.sock
