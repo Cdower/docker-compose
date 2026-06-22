@@ -1,0 +1,91 @@
+name: github-runner
+# GitHub Actions self-hosted runner — macOS (Apple Silicon / arm64) host.
+#
+# Docker Desktop on a Mac runs Linux containers inside a lightweight VM, so the
+# runner itself is a linux/arm64 container; only the *token source* is macOS-
+# specific: the login Keychain, read via the `security` CLI.
+#
+# The registration token is NEVER written to disk or committed. It is read from
+# the Keychain at start time and injected as RUNNER_TOKEN. Use the wrapper so the
+# lookup happens for you:
+#
+#   ./scripts/store-token-macos.sh     # one-time: stash the token in the Keychain
+#   ./scripts/runner-up-macos.sh       # reads Keychain -> RUNNER_TOKEN -> compose up
+#
+# …which is exactly equivalent to:
+#
+#   RUNNER_TOKEN="$(security find-generic-password -a "$USER" \
+#       -s github-actions-runner-token -w)" \
+#     docker compose -f docker-compose.macos-arm64.yml up -d --build
+#
+# The token is handed to the container as a Docker *secret* (mounted at
+# /run/secrets/runner_token, not in the environment / `docker inspect`), sourced
+# from the RUNNER_TOKEN env var the wrapper exports. All non-secret settings
+# (URL, name, labels, …) live in .env — see .env.example.
+
+# Fail fast at `compose up` time (not just inside the container) if the Keychain
+# lookup produced nothing. This `x-` key is ignored by the schema; it exists only
+# so the interpolation guard below runs.
+x-require-token: ${RUNNER_TOKEN:?RUNNER_TOKEN is empty — start with ./scripts/runner-up-macos.sh so the token is read from your Keychain (run ./scripts/store-token-macos.sh first if you have not)}
+
+services:
+  runner:
+    build:
+      context: .
+      args:
+        RUNNER_VERSION: ${RUNNER_VERSION:-latest}
+    image: github-actions-runner:arm64
+    platform: linux/arm64
+    container_name: github-runner
+    restart: unless-stopped
+    # Give an in-flight job time to finish on `docker compose down` / `stop`.
+    stop_grace_period: 5m
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Non-secret config only (the token arrives via `secrets:` below, never the
+      # environment). Falls back to these defaults if unset in .env.
+      RUNNER_URL: ${RUNNER_URL:?set RUNNER_URL in github-runner/.env (e.g. https://github.com/<org>/<repo>)}
+      RUNNER_NAME: ${RUNNER_NAME:-}
+      RUNNER_LABELS: ${RUNNER_LABELS:-self-hosted,macos,arm64,docker}
+      RUNNER_GROUP: ${RUNNER_GROUP:-Default}
+      RUNNER_WORKDIR: ${RUNNER_WORKDIR:-_work}
+      RUNNER_EXTRA_ARGS: ${RUNNER_EXTRA_ARGS:-}
+      # Where config.sh output + _work are persisted *inside* the container; this
+      # path is the mount point of the volume below.
+      RUNNER_DIR: /runner
+    secrets:
+      # Mounted at /run/secrets/runner_token; the entrypoint reads it there.
+      - runner_token
+    volumes:
+      # config.sh writes .runner/.credentials/.credentials_rsaparams/_diag here,
+      # plus the _work checkout dir. The named volume persists them across restarts
+      # and image rebuilds, so the runner registers only once.
+      - runner-data:/runner
+      # Prefer a path on local disk instead of a Docker volume? Comment the line
+      # above and use a bind mount (created automatically), e.g.:
+      # - ./_data/runner:/runner
+      # Docker-in-job (docker-out-of-docker): mount the host Docker daemon socket
+      # so steps can run docker / docker build / docker compose. The entrypoint
+      # grants the runner access by matching the socket's group.
+      # SECURITY: this gives jobs root-equivalent control of the host's Docker —
+      # use only with trusted repos/workflows. Comment it out to disable.
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      # The runner has no port; treat "Runner.Listener is alive" as healthy.
+      test: ["CMD-SHELL", "pgrep -f Runner.Listener >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+
+secrets:
+  # The token is read from the RUNNER_TOKEN env var (exported from the Keychain by
+  # scripts/runner-up-macos.sh) and exposed to the container as a file under
+  # /run/secrets — keeping it out of the container environment / `docker inspect`.
+  runner_token:
+    environment: RUNNER_TOKEN
+
+volumes:
+  runner-data:
