@@ -31,6 +31,9 @@ RUN apt-get update \
       sudo \
       procps \
       lsb-release \
+      tzdata \
+      docker \
+      libatomic1 \
  && rm -rf /var/lib/apt/lists/*
 
 # Docker CLI (+ buildx & compose plugins) so workflow steps can run Docker
