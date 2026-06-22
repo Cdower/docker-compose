@@ -33,6 +33,7 @@ RUN apt-get update \
       lsb-release \
       tzdata \
       libatomic1 \
+      libxcb1 \
  && rm -rf /var/lib/apt/lists/*
 
 # Docker CLI (+ buildx & compose plugins) so workflow steps can run Docker
