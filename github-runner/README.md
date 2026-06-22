@@ -180,16 +180,42 @@ docker compose -f docker-compose.linux-x86.yml exec runner ls -a /runner
 docker volume inspect github-runner_runner-data
 ```
 
-## Docker-in-job
+## Docker-in-job (opt-in)
 
-Workflow steps can run Docker out of the box. The image ships the Docker CLI plus
-the `buildx` and `compose` plugins, and the compose files mount the host Docker
-daemon socket (**docker-out-of-docker** — the host's daemon does the work, no
-nested daemon):
+Workflow steps can run Docker, but it's **off by default**. The image always
+ships the Docker CLI plus the `buildx` and `compose` plugins; what's gated is
+mounting the host Docker daemon socket (**docker-out-of-docker** — the host's
+daemon does the work, no nested daemon). That mount, and the `docker` label,
+live in a per-platform *override* file so the base stack is safe by default:
+
+| File                                       | Role                                                           |
+|--------------------------------------------|----------------------------------------------------------------|
+| `docker-compose.<platform>.yml`            | Base stack — **no** host Docker socket, **no** `docker` label. |
+| `docker-compose.<platform>.override.yml`   | Adds the `docker.sock` mount **and** the `docker` label.       |
+
+Enable it by setting `RUNNER_DOCKER_IN_JOB=1` (inline or in `.env`); the wrapper
+then layers the override on top of the base:
+
+```bash
+RUNNER_DOCKER_IN_JOB=1 ./scripts/runner-up-linux.sh    # or runner-up-macos.sh
+```
+
+…which is exactly equivalent to passing both files yourself:
+
+```bash
+docker compose -f docker-compose.linux-x86.yml \
+               -f docker-compose.linux-x86.override.yml up -d --build
+```
+
+The override mounts the socket and re-adds the `docker` label:
 
 ```yaml
-volumes:
-  - /var/run/docker.sock:/var/run/docker.sock
+services:
+  runner:
+    environment:
+      RUNNER_LABELS: ${RUNNER_LABELS:-self-hosted,linux,x64,docker}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 ```
 
 The socket's owning group differs by host (often `0`/root on Docker Desktop,
@@ -204,8 +230,13 @@ steps:
   - run: docker compose up -d
 ```
 
-**Disable it** by commenting the `docker.sock` line in the compose file (and, to
-also drop the CLI from the image, rebuild with `INSTALL_DOCKER_CLI=false`).
+> **Heads-up — the `docker` label needs a re-register.** The socket mount takes
+> effect the moment you bring the runner up with the override. The `docker`
+> label, however, is only handed to `config.sh` on first boot and then persisted
+> in the volume, so enabling the override on an already-registered runner won't
+> add it. Re-register to pick it up: `down -v` and back up, or `exec … config.sh
+> remove` then up again (see [Operations](#operations)). To slim the image so it
+> carries no Docker CLI at all, rebuild with `INSTALL_DOCKER_CLI=false`.
 
 > **Security:** mounting the Docker socket gives jobs root-equivalent control of
 > the host's Docker (and therefore the host). Only enable it for trusted repos /
@@ -246,7 +277,8 @@ docker compose -f docker-compose.linux-x86.yml exec runner \
 |---------------------------------|--------------------------------------|---------|
 | `RUNNER_URL`                    | — (required)                         | Repo/org/enterprise URL to register against. |
 | `RUNNER_NAME`                   | container hostname                   | Name shown in the Runners list. |
-| `RUNNER_LABELS`                 | platform default (see compose)       | Labels for `runs-on` targeting. |
+| `RUNNER_LABELS`                 | platform default (see compose)       | Labels for `runs-on` targeting (`docker` added by the override). |
+| `RUNNER_DOCKER_IN_JOB`          | unset (off)                          | Set `1` to enable docker-in-job via the override file. |
 | `RUNNER_GROUP`                  | `Default`                            | Runner group (org/enterprise). |
 | `RUNNER_WORKDIR`                | `_work`                              | Checkout dir under `/runner`. |
 | `RUNNER_EXTRA_ARGS`             | —                                    | Extra `config.sh` flags (e.g. `--ephemeral`). |
@@ -261,9 +293,10 @@ docker compose -f docker-compose.linux-x86.yml exec runner \
 - **Runner won't re-register after editing labels/name** — `config.sh` runs only
   when `/runner/.runner` is absent. Either `down -v` to reset, or `exec … config.sh
   remove` then bring it up again.
-- **`docker: command not found` in a job** — the image was built with
-  `INSTALL_DOCKER_CLI=false`, or the `docker.sock` mount is commented out. See
-  [Docker-in-job](#docker-in-job).
+- **`docker: command not found` / Docker unavailable in a job** — docker-in-job
+  is opt-in; bring the runner up with `RUNNER_DOCKER_IN_JOB=1` (or the image was
+  built with `INSTALL_DOCKER_CLI=false`). See
+  [Docker-in-job](#docker-in-job-opt-in).
 - **`permission denied` on `/var/run/docker.sock`** — the entrypoint adjusts the
   `runner` group to match the socket at start; if you bind-mount a socket with an
   unusual owner, check the `==> Docker socket … detected` log line.

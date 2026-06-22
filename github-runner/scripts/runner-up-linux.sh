@@ -5,6 +5,12 @@
 #   ./scripts/runner-up-linux.sh logs -f        # any docker compose subcommand
 #   ./scripts/runner-up-linux.sh down           # stop (keeps the persisted volume)
 #
+# Docker-in-job is opt-in. Set RUNNER_DOCKER_IN_JOB=1 (here or in .env) to layer
+# docker-compose.linux-x86.override.yml on top — it mounts the host Docker
+# socket and adds the `docker` label:
+#
+#   RUNNER_DOCKER_IN_JOB=1 ./scripts/runner-up-linux.sh
+#
 # The token is exported only into this process's environment for the compose call
 # (never written to disk). Non-secret settings come from ../.env.
 set -euo pipefail
@@ -28,6 +34,14 @@ RUNNER_TOKEN="$(secret-tool lookup service "${SERVICE}" account "${USER}")" || t
 }
 export RUNNER_TOKEN
 
+# Compose files: the base, plus the docker-in-job override when opted in. The -f
+# flags must precede the subcommand, so build them into an array here.
+compose_files=(-f docker-compose.linux-x86.yml)
+case "${RUNNER_DOCKER_IN_JOB:-}" in
+  1 | true | yes | on)
+    compose_files+=(-f docker-compose.linux-x86.override.yml) ;;
+esac
+
 # Default to a build + detached up; pass through anything the caller provides.
 if [ "$#" -eq 0 ]; then set -- up -d --build; fi
-exec docker compose -f docker-compose.linux-x86.yml "$@"
+exec docker compose "${compose_files[@]}" "$@"

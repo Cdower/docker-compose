@@ -1,0 +1,30 @@
+name: github-runner
+# Docker-in-job overlay for the macOS (Apple Silicon / arm64) runner — OPT-IN.
+#
+# Layered on top of docker-compose.macos-arm64.yml, this mounts the host Docker
+# daemon socket (docker-out-of-docker — the host's daemon does the work, no
+# nested daemon) so workflow steps can run docker / docker build / docker
+# compose, and re-adds the `docker` label so jobs can target it via `runs-on`.
+#
+# Enable it through the wrapper, which adds this file's -f for you:
+#
+#   RUNNER_DOCKER_IN_JOB=1 ./scripts/runner-up-macos.sh
+#
+# …or by hand:
+#
+#   docker compose -f docker-compose.macos-arm64.yml \
+#                  -f docker-compose.macos-arm64.override.yml up -d --build
+#
+# SECURITY: the Docker socket gives jobs root-equivalent control of the host's
+# Docker (and therefore the host). Only enable it for trusted repos/workflows.
+services:
+  runner:
+    environment:
+      # Re-add the `docker` label the base file omits, so workflows can target
+      # this runner's docker-in-job capability. Only registered with config.sh on
+      # first boot (it's persisted in the volume) — see the README to re-register.
+      RUNNER_LABELS: ${RUNNER_LABELS:-self-hosted,linux,arm64,docker}
+    volumes:
+      # The entrypoint grants the runner access by matching the socket's owning
+      # group (GID varies by host), so no hardcoded `docker` GID is needed.
+      - /var/run/docker.sock:/var/run/docker.sock
