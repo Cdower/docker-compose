@@ -61,7 +61,7 @@ seconds. Target it from a workflow with the labels you configured:
 ```yaml
 jobs:
   build:
-    runs-on: [self-hosted, linux, x64]   # or: [self-hosted, macos, arm64]
+    runs-on: [self-hosted, linux, x64]   # or: [self-hosted, linux, arm64]
 ```
 
 ## How the token reaches the runner
@@ -277,7 +277,7 @@ docker compose -f docker-compose.linux-x86.yml exec runner \
 |---------------------------------|--------------------------------------|---------|
 | `RUNNER_URL`                    | — (required)                         | Repo/org/enterprise URL to register against. |
 | `RUNNER_NAME`                   | container hostname                   | Name shown in the Runners list. |
-| `RUNNER_LABELS`                 | platform default (see compose)       | Labels for `runs-on` targeting (`docker` added by the override). |
+| `RUNNER_LABELS`                 | platform default (see compose)       | Labels for `runs-on` targeting. The override's default adds `docker`; a value set here is used verbatim (add `docker` yourself). |
 | `RUNNER_DOCKER_IN_JOB`          | unset (off)                          | Set `1` to enable docker-in-job via the override file. |
 | `RUNNER_GROUP`                  | `Default`                            | Runner group (org/enterprise). |
 | `RUNNER_WORKDIR`                | `_work`                              | Checkout dir under `/runner`. |
