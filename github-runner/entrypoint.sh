@@ -73,8 +73,20 @@ else
   echo "==> Found existing ${RUNNER_DIR}/.runner — reusing persisted configuration"
 fi
 
-# 3. Hand off to the runner. `exec` keeps it as PID 1's replacement so that
-#    `docker stop` delivers SIGTERM straight to it for a graceful, finish-the-
-#    current-job shutdown (allow time via stop_grace_period in the compose file).
+# 3. Hand off to the runner. `exec` makes run.sh PID 1 so `docker stop`'s SIGTERM
+#    reaches it directly — but that alone is NOT enough for a clean stop. By
+#    default run.sh runs run-helper.sh in the foreground and installs no signal
+#    handler, and the kernel silently DISCARDS any signal sent to PID 1 that has
+#    no handler. So SIGTERM is dropped, Runner.Listener keeps running, and Docker
+#    waits out the full stop_grace_period (5m) before SIGKILL — the "hangs until I
+#    docker stop -t 5" symptom (-t 5 just force-kills sooner; it isn't graceful).
+#
+#    RUNNER_MANUALLY_TRAP_SIG=1 switches run.sh to its runWithManualTrap path: it
+#    installs a `trap … INT TERM` handler (so the kernel now delivers SIGTERM to
+#    PID 1) and forwards SIGINT to the runner's process group. Runner.Listener
+#    then drains any in-flight job (within stop_grace_period) and exits — promptly
+#    and immediately when idle. This is the runner's built-in mechanism for
+#    containerized graceful shutdown.
+export RUNNER_MANUALLY_TRAP_SIG=1
 echo "==> Starting runner"
 exec gosu runner ./run.sh
