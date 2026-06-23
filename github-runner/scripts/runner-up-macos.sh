@@ -6,7 +6,7 @@
 #   ./scripts/runner-up-macos.sh down           # stop (keeps the persisted volume)
 #
 # Docker-in-job is opt-in. Set RUNNER_DOCKER_IN_JOB=1 (here or in .env) to layer
-# docker-compose.macos-arm64.override.yml on top — it mounts the host Docker
+# docker-compose.macos-arm64.dind.override.yml on top — it mounts the host Docker
 # socket and adds the `docker` label:
 #
 #   RUNNER_DOCKER_IN_JOB=1 ./scripts/runner-up-macos.sh
@@ -33,7 +33,7 @@ export RUNNER_TOKEN
 compose_files=(-f docker-compose.macos-arm64.yml)
 case "${RUNNER_DOCKER_IN_JOB:-}" in
   1 | true | yes | on)
-    compose_files+=(-f docker-compose.macos-arm64.override.yml) ;;
+    compose_files+=(-f docker-compose.macos-arm64.dind.override.yml) ;;
 esac
 
 # Default to a build + detached up; pass through anything the caller provides.
