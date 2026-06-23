@@ -75,6 +75,18 @@ RUN curl -fsSL -o /usr/local/bin/gosu \
 # Unprivileged account the runner actually executes under.
 RUN useradd --create-home --shell /bin/bash runner
 
+# Let the runner reclaim ownership of its work tree before each job (see the
+# job-started hook wired up below). Docker-based jobs — `container:` jobs, their
+# service containers, and the Claude Code action — run as root via the daemon
+# and, with the dind overlay sharing this /runner volume, leave root-owned files
+# under /runner/_work that the unprivileged `runner` user can't otherwise clean,
+# which breaks the next actions/checkout. A single scoped NOPASSWD chown (no
+# arguments restriction so it covers /runner/_work and everything beneath it) is
+# all the hook needs; validate the rule at build time so a typo fails the build.
+RUN printf 'runner ALL=(root) NOPASSWD: /usr/bin/chown\n' > /etc/sudoers.d/10-runner-chown \
+ && chmod 0440 /etc/sudoers.d/10-runner-chown \
+ && visudo -cf /etc/sudoers.d/10-runner-chown
+
 # Stage the runner binaries in the image. At runtime entrypoint.sh copies these
 # into the *persistent* /runner volume on first boot (see entrypoint.sh), so the
 # image stays the source of truth for binaries while config + work persist.
@@ -98,6 +110,15 @@ RUN set -eux; \
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Pre-job cleanup hook: the runner invokes this (as the `runner` user) before
+# the first step of every job — i.e. before actions/checkout — to reset
+# ownership of /runner/_work so root-owned files left by prior Docker-based jobs
+# don't break the checkout. Lives at a fixed image path (NOT under /runner,
+# which is a persisted volume seeded only on first boot) so it's always present.
+COPY hooks/job-started.sh /usr/local/share/github-runner/job-started.sh
+RUN chmod +x /usr/local/share/github-runner/job-started.sh
+ENV ACTIONS_RUNNER_HOOK_JOB_STARTED=/usr/local/share/github-runner/job-started.sh
 
 # Persisted runner directory: config.sh output (.runner/.credentials/_diag) + _work.
 ENV RUNNER_DIR=/runner

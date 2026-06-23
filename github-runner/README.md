@@ -300,6 +300,20 @@ docker compose -f docker-compose.linux-x86.yml exec runner \
 - **`permission denied` on `/var/run/docker.sock`** — the entrypoint adjusts the
   `runner` group to match the socket at start; if you bind-mount a socket with an
   unusual owner, check the `==> Docker socket … detected` log line.
+- **`actions/checkout` fails with `Permission denied` / `EACCES … unlink` (and
+  then `uv: command not found`)** — a Docker-based job (`container:` jobs, their
+  service containers, or the Claude Code action) left **root-owned files** under
+  `/runner/_work`. With the dind overlay the daemon shares the runner's `/runner`
+  volume and runs those containers as root, so the unprivileged `runner` user
+  can't clean the workspace on the next job. The image ships a pre-job hook
+  (`ACTIONS_RUNNER_HOOK_JOB_STARTED` → `job-started.sh`) that resets ownership of
+  `/runner/_work` before each job; look for `==> [job-started] reclaiming
+  ownership …` in the runner log. Note the cascade: when checkout fails, the
+  unconditional `setup-uv`/`uv sync` steps are skipped while later steps marked
+  `if: ${{ !cancelled() }}` still run, so the *real* failure (checkout) hides
+  behind a misleading `uv: command not found`. Rebuild the image
+  (`runner-up-*.sh build --pull && … up -d`) to pick up the hook on an existing
+  runner.
 - **Don't run privileged CI on a runner exposed to untrusted PRs.** Self-hosted
   runners should generally be limited to private repos or trusted workflows, and
   the mounted Docker socket makes this especially important.
