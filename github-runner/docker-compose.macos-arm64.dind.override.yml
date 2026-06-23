@@ -37,7 +37,7 @@ services:
       - docker
 
   docker:
-    image: docker:27-dind
+    image: docker:29-dind
     container_name: github-runner-dind
     # Required for a nested daemon. On Docker Desktop this is confined to the
     # Desktop VM.
