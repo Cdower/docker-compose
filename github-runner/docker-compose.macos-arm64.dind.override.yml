@@ -1,0 +1,59 @@
+name: github-runner
+# Docker-in-Docker overlay (OPT-IN) for the macOS (Apple Silicon / arm64) runner.
+#
+# Use this INSTEAD OF docker-compose.macos-arm64.override.yml (the docker-out-of-
+# docker / host-socket overlay). Here, workflow jobs talk to an isolated `dind`
+# daemon over TCP rather than the host's Docker, so the runner never asks Docker
+# Desktop to bind-mount host paths.
+#
+#   docker compose -f docker-compose.macos-arm64.yml \
+#                  -f docker-compose.macos-arm64.dind.override.yml up -d --build
+#
+# WHY THIS FIXES JOB CONTAINERS (`container:` in a workflow):
+# The runner always bind-mounts its work tree into every job container by
+# absolute path (-v /runner/_work:/__w, -v /runner/externals:/__e:ro, …). Over
+# docker-out-of-docker those sources are resolved by Docker Desktop against the
+# *Mac* filesystem, where /runner is a named volume it can't share -> "mounts
+# denied". Here the runner points DOCKER_HOST at the `dind` daemon, and the SAME
+# `runner-data` volume is mounted into `dind` at the SAME path (/runner). So when
+# the runner tells dind `-v /runner/_work:/__w`, dind resolves it against its own
+# filesystem, where the volume is mounted, and the bind succeeds — no host paths,
+# no Docker Desktop File Sharing. Service containers (e.g. postgres) and the job
+# container also share dind's network, so `postgres:5432` keeps resolving.
+#
+# SECURITY: dind needs `privileged: true`, but unlike the host-socket overlay it
+# does NOT hand jobs control of the host's Docker — it's an isolated daemon.
+services:
+  runner:
+    environment:
+      # Talk to the dind daemon over the internal compose network instead of a
+      # mounted host socket. (Plaintext; the daemon is only reachable on this
+      # network — see the TLS note in the README to harden.)
+      DOCKER_HOST: tcp://docker:2375
+      # Compose replaces this scalar (it can't append), so restate the base
+      # default plus `docker`. Only registered by config.sh on first boot.
+      RUNNER_LABELS: ${RUNNER_LABELS:-self-hosted,linux,arm64,docker}
+    depends_on:
+      - docker
+
+  docker:
+    image: docker:27-dind
+    container_name: github-runner-dind
+    # Required for a nested daemon. On Docker Desktop this is confined to the
+    # Desktop VM.
+    privileged: true
+    restart: unless-stopped
+    environment:
+      # Disable TLS: listen on plain tcp 2375 (internal network only).
+      DOCKER_TLS_CERTDIR: ""
+    command: ["--host=tcp://0.0.0.0:2375", "--host=unix:///var/run/docker.sock"]
+    volumes:
+      # SAME volume, SAME path as the runner mounts it (base file: runner-data:/runner).
+      # This is the key that makes the runner's bind mounts resolve inside dind.
+      - runner-data:/runner
+      # dind's own image store, persisted so pulls survive restarts.
+      - dind-storage:/var/lib/docker
+
+volumes:
+  # runner-data is declared in the base compose file; only the new one is added here.
+  dind-storage:
