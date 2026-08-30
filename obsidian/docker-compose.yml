@@ -1,7 +1,7 @@
 ---
 services:
   obsidian:
-    image: lscr.io/linuxserver/obsidian:v1.11.7-ls111
+    image: lscr.io/linuxserver/obsidian:1.13.7
     container_name: obsidian
 
     # GPU acceleration - map only the specific devices needed
