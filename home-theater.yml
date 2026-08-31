@@ -68,8 +68,8 @@ services:
     environment:
       - PUID=1001
       - PGID=1001
-      - TRUSER=control
-      - TRPASSWD=KDYAf18EMI5YGBkFMEqQ
+      - TRUSER=${TRANSMISSION_USER:?set TRANSMISSION_USER}
+      - TRPASSWD=${TRANSMISSION_PASSWORD:?set TRANSMISSION_PASSWORD}
       - TZ="America/Los_Angeles"
     volumes:
       - "/opt/transmission/config:/config:rw"
