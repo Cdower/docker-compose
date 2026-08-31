@@ -1,0 +1,65 @@
+---
+services:
+  obsidian:
+    image: lscr.io/linuxserver/obsidian:1.13.7
+    container_name: obsidian
+
+    # GPU acceleration - map only the specific devices needed
+    devices:
+      - /dev/dri:/dev/dri
+
+    environment:
+      - PUID=2000
+      - PGID=2000
+      - TZ=Etc/UTC
+      - MAX_RESOLUTION=3840x2160
+      - DRINODE=/dev/dri/renderD128
+      - DRI_NODE=/dev/dri/renderD128
+      - NO_GAMEPAD=true
+      - START_DOCKER=true
+      - TITLE=Claude Vault
+
+    volumes:
+      - /opt/obsidian:/config
+
+    ports:
+      # UI - LAN-accessible (reverse proxy on separate LAN host)
+      - 3002:3000
+      - 3003:3001
+      # MCP server - LAN-accessible (API key authenticates clients)
+      - 27123:27123
+      - 27124:27124
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 4g
+        reservations:
+          memory: 2g
+    shm_size: "1gb"
+
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+      - SYS_CHROOT
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+
+    # Log rotation
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    restart: unless-stopped
