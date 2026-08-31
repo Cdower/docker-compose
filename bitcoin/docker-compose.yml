@@ -1,0 +1,14 @@
+version: '3.3'
+services:
+  bitcoin:
+    image: bitcoin-server
+    build: .
+    environment:
+      - TZ="America/Los_Angeles"
+      - USER_ID=1004
+      - GROUP_ID=1004
+    ports:
+      - "8333:8333"
+      - "8332:8332"
+    volumes:
+      - /opt/btc-data:/bitcoin

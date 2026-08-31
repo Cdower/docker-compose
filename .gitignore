@@ -1,0 +1,9 @@
+*secret.env
+
+# Hindsight: real env holds API keys/DB password; keep the template tracked.
+hindsight/.env
+
+# GitHub Actions runner: per-user config (URL/labels); token lives in the keychain.
+github-runner/.env
+# Local-disk persistence option for the runner (config.sh output, _work).
+github-runner/_data/

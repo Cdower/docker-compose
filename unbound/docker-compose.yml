@@ -1,0 +1,11 @@
+version: '3.3'
+
+services:
+  docker-compose:
+    image: docker-compose
+    build: .
+    ports:
+      - "53:53"
+      - "53:53/udp"
+    volumes:
+      - /var/log/unbound:/var/log/unbound
