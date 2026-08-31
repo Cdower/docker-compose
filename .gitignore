@@ -1,3 +1,5 @@
+# Real secret env files (e.g. vpn-server-secret.env); copy the tracked
+# *.example template alongside it and fill in real values.
 *secret.env
 
 # Hindsight: real env holds API keys/DB password; keep the template tracked.
